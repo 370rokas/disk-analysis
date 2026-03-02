@@ -1,0 +1,7 @@
+{
+  "name" : "disk-analysis",
+  "version-string" : "v0.1",
+  "dependencies" : [ {
+    "name" : "cli11"
+  } ]
+}

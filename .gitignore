@@ -1,0 +1,5 @@
+# build stuff:
+cmake-build-*/
+
+# testing related stuff:
+images/
