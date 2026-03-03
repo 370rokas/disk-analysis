@@ -20,9 +20,9 @@ int main(int argc, char** argv) {
                 da::cli::listPartitions();
                 break;
             case da::ActionType::Tree:
+                da::cli::treeFilesystem();
                 break;
             case da::ActionType::ExtractFile:
-                break;
             case da::ActionType::RunScript:
                 break;
             default:

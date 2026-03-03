@@ -3,5 +3,9 @@
   "version-string" : "v0.1",
   "dependencies" : [ {
     "name" : "cli11"
+  }, {
+    "name" : "nlohmann-json"
+  }, {
+    "name": "spdlog"
   } ]
 }

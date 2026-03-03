@@ -11,7 +11,7 @@ namespace da {
     class Partitions {
     public:
         static std::vector<PartitionInfo> listPartitions(const Disk& disk);
-
+        static std::unique_ptr<FileSystem> getFileSystem(const Disk& disk, uint32_t partition_id);
     };
 }
 

@@ -7,7 +7,7 @@
 std::vector<da::PartitionInfo> da::Partitions::listPartitions(const Disk &disk) {
     try {
         // Attempt to open the volume system
-        Volume vol(disk);
+        const Volume vol(disk);
         return vol.getPartitions();
     } catch (const std::exception& e) {
         std::vector<PartitionInfo> partitions;
@@ -27,5 +27,16 @@ std::vector<da::PartitionInfo> da::Partitions::listPartitions(const Disk &disk) 
         }
 
         return partitions;
+    }
+}
+
+std::unique_ptr<da::FileSystem> da::Partitions::getFileSystem(const Disk &disk, uint32_t partition_id) {
+    // try to read the volume, if it doesn't exist, try reading the whole disk as a FS
+    try {
+        Volume vol(disk);
+        return vol.openFS(partition_id);
+    } catch (const std::exception& e) {
+        tsk_error_reset();
+        return std::make_unique<FileSystem>(disk, 0);
     }
 }

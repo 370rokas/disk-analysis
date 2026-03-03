@@ -39,8 +39,57 @@ namespace da::cli {
         }
     }
 
+    inline void treeFilesystem() {
+        auto &ctx = Ctx::get();
+        auto target_partition_id = ctx.config.target_partition;
 
-    void displayTree();
+        const auto FS = da::Partitions::getFileSystem(ctx.getDisk(), target_partition_id);
+
+        if (!FS) {
+            std::cerr << "Failed to get filesystem for partition ID: " << target_partition_id << std::endl;
+            return;
+        }
+
+        auto root = FS->root();
+        root->loadAllDescendants();
+
+        if (ctx.config.json_output) {
+            nlohmann::json j = *root;
+            std::cout << j.dump() << std::endl;
+        } else if (ctx.config.csv_output) {
+            std::cout << "name,size,is_directory,linksTo\n";
+            std::function<void(const da::FSEntry*)> printEntry;
+            printEntry = [&](const da::FSEntry* entry) {
+                std::cout << "\"" << entry->fullPath() << "\","
+                          << entry->size() << ","
+                          << (entry->isDirectory() ? "true" : "false") << ","
+                          << (entry->isLink() ? entry->linkTarget() : "null")
+                          << "\n";
+
+                if (entry->isDirectory()) {
+                    for (const auto& [name, child] : entry->children()) {
+                        printEntry(child);
+                    }
+                }
+            };
+            printEntry(root);
+        } else {
+            std::function<void(const da::FSEntry*, int)> printEntry;
+            printEntry = [&](const da::FSEntry* entry, int indent) {
+                std::cout << std::string(indent * 2, ' ')
+                          << entry->name() << " (size: " << entry->size() << ", "
+                          << (entry->isDirectory() ? "dir" : "file") << ")\n";
+
+                if (entry->isDirectory()) {
+                    for (const auto& [name, child] : entry->children()) {
+                        printEntry(child, indent + 1);
+                    }
+                }
+            };
+            printEntry(root, 0);
+        }
+    }
+
     void extractFile();
 }
 

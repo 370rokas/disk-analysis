@@ -4,20 +4,25 @@
 
 #include "fsEntry.hpp"
 
-#include <cstring>
+#include <iostream>
 
 namespace da {
-    std::vector<da::FSEntry> da::FSEntry::getChildren() const {
-        std::vector<da::FSEntry> children;
+    void FSEntry::loadChildren_() {
+        if (areChildrenLoaded_ || !isDirectory_ || !handle_) return;
 
-        TSK_FS_DIR* dir = tsk_fs_dir_open_meta(handle_->fs_info, handle_->meta->addr);
-        if (!dir) return children;
+        dir_ = tsk_fs_dir_open_meta(handle_->fs_info, handle_->meta->addr);
+        if (!dir_) return;
 
-        const auto nEntries = tsk_fs_dir_getsize(dir);
-        for (size_t i = 0; i < nEntries; i++) {
+        const auto nEntries = tsk_fs_dir_getsize(dir_);
+        for (auto i = 0; i < nEntries; i++) {
+            TSK_FS_FILE* fsFile = tsk_fs_dir_get(dir_, i);
+            if (fsFile == nullptr) continue;
 
-            TSK_FS_FILE* fsFile = tsk_fs_dir_get(dir, i);
-            if (!fsFile) continue;
+            // Skip unallocated files
+            if (fsFile->name->flags & TSK_FS_NAME_FLAG_UNALLOC) {
+                tsk_fs_file_close(fsFile);
+                continue;
+            }
 
             // skip "." and ".." entries
             if (fsFile->name && (strcmp(fsFile->name->name, ".") == 0 || strcmp(fsFile->name->name, "..") == 0)) {
@@ -25,14 +30,38 @@ namespace da {
                 continue;
             }
 
-            // no need to create a FSEntry explicitly, cause the constructor gets called automatically
-            children.emplace_back(fsFile);
+            // skip ntfs $OrphanFiles
+            if (fsFile->name && strcmp(fsFile->name->name, "$OrphanFiles") == 0) {
+                tsk_fs_file_close(fsFile);
+                continue;
+            }
 
-            tsk_fs_file_close(fsFile);
+            children_[fsFile->name->name] = new FSEntry(fsFile, this);
         }
 
-        tsk_fs_dir_close(dir);
-        return children;
+        areChildrenLoaded_ = true;
+    }
+
+    void to_json(nlohmann::json &j, const FSEntry &entry) {
+        j = nlohmann::json{
+            {"name", entry.name()},
+            {"size", entry.size()},
+            {"is_directory", entry.isDirectory()}
+        };
+
+        if (entry.isDirectory()) {
+            j["children"] = nlohmann::json::array();
+            for (const auto &child: entry.children() | std::views::values) {
+                nlohmann::json childJson;
+                to_json(childJson, *child);
+                j["children"].push_back(childJson);
+            }
+        }
+
+        if (entry.isLink()) {
+            j["is_link"] = true;
+            j["link_target"] = entry.linkTarget();
+        }
     }
 
     std::string FSEntry::name() const {
@@ -40,5 +69,14 @@ namespace da {
             return {}; // Invalid handle or name
         }
         return { handle_->name->name };
+    }
+
+    void FSEntry::loadAllDescendants() {
+        if (!isDirectory_) return;
+
+        loadChildren_();
+        for (const auto& [name, child] : children_) {
+            child->loadAllDescendants();
+        }
     }
 } // da

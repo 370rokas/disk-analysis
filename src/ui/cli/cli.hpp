@@ -19,7 +19,9 @@ namespace da {
 
         std::string in_path; // For future use (e.g., input file for scripts)
         std::string out_path; // For future use (e.g., output file for scripts)
-        std::string log_file; // For future use
+
+        bool log_console = false;
+        std::string log_file;
 
         std::string lua_settings; // For future use (e.g., settings for LUA scripts)
 
@@ -90,7 +92,8 @@ namespace da {
             csv_flag->excludes(json_flag);
 
             // log file
-            app.add_option("--log", config.log_file, "Path to log file (optional)");
+            app.add_option("-l,--log", config.log_file, "Path to log file (optional)");
+            app.add_option("-lc,--console", config.log_console, "Enable logging to console");
 
             app.require_subcommand(1); // Require exactly one subcommand
         }
