@@ -5,6 +5,21 @@ A terminal tool for disk analysis and data extraction from file systems. Powered
 
 Docs coming soon!
 
+```bash
+disk-analysis [options] <image> <subcommand> [args]
+
+# Examples:
+
+## See all available subcommands and options
+disk-analysis --help
+
+## List partitions on a disk image in CSV format
+disk-analysis --csv images/blk0_mmcblk0.bin ls
+
+## Get a tree view of the file system with id 30 in JSON format
+disk-analysis --json images/blk0_mmcblk0.bin tree 30
+```
+
 ## Prerequisites
 
 Before building, ensure you have the following installed:
@@ -20,7 +35,7 @@ Before building, ensure you have the following installed:
 
 ```bash
 # 1. Clone the repository
-git clone [https://github.com/yourusername/disk-analysis.git](https://github.com/yourusername/disk-analysis.git)
+git clone https://github.com/370rokas/disk-analysis.git
 cd disk-analysis
 
 # 2. Install dependencies via vcpkg
@@ -32,7 +47,7 @@ cmake ..
 make
 
 # 4. Run the tool
-./disk-analysis [options]
+./disk-analysis (...)
    ```
 
 ## Structure
