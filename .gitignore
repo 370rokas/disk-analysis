@@ -1,5 +1,6 @@
 # build stuff:
 cmake-build-*/
+build/
 
 # testing related stuff:
 images/
