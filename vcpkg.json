@@ -11,5 +11,7 @@
     "name": "lua"
   }, {
     "name": "sol2"
+  }, {
+    "name": "zlib"
   } ]
 }
