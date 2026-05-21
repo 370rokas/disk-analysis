@@ -6,6 +6,7 @@
 #define DISK_ANALYSIS_DISK_HPP
 
 #include <stdexcept>
+#include <string>
 
 #include <tsk/libtsk.h>
 
@@ -15,7 +16,12 @@ namespace da {
 
     public:
         Disk(const std::string& path) {
+#ifdef TSK_WIN32
+            std::wstring wpath(path.begin(), path.end());
+            const TSK_TCHAR* paths[] = { wpath.c_str() };
+#else
             const TSK_TCHAR* paths[] = { path.c_str() };
+#endif
             img_ = tsk_img_open(1, paths, TSK_IMG_TYPE_DETECT, 0);
 
             if (!img_) {
