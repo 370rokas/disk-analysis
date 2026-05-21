@@ -137,6 +137,8 @@ jobs:
         shell: msys2 {0}
         working-directory: tsk-src
         run: |
+          # GCC 14 rejects 'typedef unsigned bool' when stdbool.h already defines bool as _Bool.
+          sed -i 's/typedef unsigned[[:space:]]*bool;/#ifndef bool\ntypedef unsigned bool;\n#endif/' tsk/base/crc.h
           TSK_PREFIX=$(cygpath -u "$TSK_INSTALL")
           ./bootstrap
           ./configure \
