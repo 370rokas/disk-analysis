@@ -13,5 +13,7 @@
     "name": "sol2"
   }, {
     "name": "zlib"
+  }, {
+    "name": "nlohmann-json"
   } ]
 }

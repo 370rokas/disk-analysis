@@ -21,7 +21,6 @@ namespace da {
 
         CliConfig config;
         std::unique_ptr<Disk> disk;
-        std::map<TSK_INUM_T, std::string> inodeDirMap{}; // inode -> path (to prevent infinite loops with hard links)
 
         Disk& getDisk() {
             if (!disk) {
@@ -34,7 +33,7 @@ namespace da {
             if (!logger) {
                 std::lock_guard<std::mutex> lock(_log_mutex);
                 if (!logger) { // Check again after acquiring lock
-                    logger = da::initLogger(config.log_file);
+                    logger = da::initLogger(config.log_file, config.log_console);
                 }
             }
             return *logger;

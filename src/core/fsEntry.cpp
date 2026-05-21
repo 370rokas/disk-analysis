@@ -4,7 +4,7 @@
 
 #include "fsEntry.hpp"
 
-#include <iostream>
+#include <ranges>
 
 namespace da {
     void FSEntry::loadChildren_() {
@@ -36,7 +36,7 @@ namespace da {
                 continue;
             }
 
-            children_[fsFile->name->name] = new FSEntry(fsFile, this);
+            children_[fsFile->name->name] = new FSEntry(fsFile, this, inodeMap_);
         }
 
         areChildrenLoaded_ = true;

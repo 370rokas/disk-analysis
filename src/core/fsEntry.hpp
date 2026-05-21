@@ -6,13 +6,10 @@
 #define DISK_ANALYSIS_FSENTRY_HPP
 
 #include <map>
-#include <ranges>
 #include <string>
 #include <nlohmann/json.hpp>
 
 #include <tsk/libtsk.h>
-
-#include "context.hpp"
 
 namespace da {
     class FSEntry {
@@ -20,6 +17,7 @@ namespace da {
         TSK_FS_DIR* dir_ = nullptr;
 
         FSEntry* parent_ = nullptr;
+        std::map<TSK_INUM_T, std::string>& inodeMap_;
 
         bool isDirectory_ = false;
         bool areChildrenLoaded_ = false;
@@ -30,20 +28,19 @@ namespace da {
 
         void loadChildren_();
     public:
-        FSEntry(TSK_FS_FILE* f, FSEntry* p) : handle_(f), parent_(p) {
+        FSEntry(TSK_FS_FILE* f, FSEntry* p, std::map<TSK_INUM_T, std::string>& inodeMap)
+            : handle_(f), parent_(p), inodeMap_(inodeMap) {
             if (handle_ && handle_->meta) {
                 isDirectory_ = (handle_->meta->type == TSK_FS_META_TYPE_DIR);
             }
 
-            auto& ctx = Ctx::get();
-            if (ctx.inodeDirMap.contains(handle_->meta->addr)) {
-                // this inode has already been visited, so it's a hard link, use the mapped path
-                linkTarget_ = ctx.inodeDirMap[handle_->meta->addr];
+            if (handle_->meta && inodeMap_.contains(handle_->meta->addr)) {
+                linkTarget_ = inodeMap_[handle_->meta->addr];
                 isLink_ = true;
                 handle_ = nullptr;
-            } else {
-                std::string fullPath = parent_ ? parent_->name() + "/" + name() : name();
-                ctx.inodeDirMap[handle_->meta->addr] = fullPath;
+            } else if (handle_->meta) {
+                std::string fullPath = parent_ ? parent_->fullPath() + "/" + name() : name();
+                inodeMap_[handle_->meta->addr] = fullPath;
             }
         }
 

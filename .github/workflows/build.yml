@@ -10,6 +10,9 @@ on:
 permissions:
   contents: write  # required for gh release upload
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     strategy:
@@ -23,12 +26,12 @@ jobs:
             binary: build/disk-analysis
             release_asset: disk-analysis-linux-x64
 
-          - os: macos-13
-            name: macos-x64
-            vcpkg_triplet: x64-osx-static
+          - os: macos-latest
+            name: macos-arm64
+            vcpkg_triplet: arm64-osx-static
             tsk_lib: libtsk.a
             binary: build/disk-analysis
-            release_asset: disk-analysis-macos-x64
+            release_asset: disk-analysis-macos-arm64
 
           - os: windows-latest
             name: windows-x64

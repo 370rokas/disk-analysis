@@ -81,7 +81,6 @@ A global singleton (`Ctx::get()`) that holds shared state across the entire run:
 |---|---|---|
 | `config` | `CliConfig` | Parsed CLI options |
 | `disk` | `unique_ptr<Disk>` | The open disk image |
-| `inodeDirMap` | `map<TSK_INUM_T, string>` | Inode → first-seen path, used for hard link detection |
 
 The logger is also initialised lazily through the context (`getLogger()`), creating spdlog sinks based on `config.log_file` and `config.log_console` on first access.
 
@@ -200,9 +199,9 @@ main()
 
 TSK can walk the same inode multiple times when a file has more than one directory entry (hard link). Without deduplication, a recursive tree walk could follow circular links infinitely.
 
-`Ctx::inodeDirMap` acts as a visited set keyed by inode address. On the first visit, the address is recorded with the entry's path. On any subsequent visit, `FSEntry` sets `handle_ = nullptr` and `isLink_ = true`. Because `isLink_` entries have a null handle, they cannot be opened, read, or descended into — they simply record where to look.
+`FileSystem::inodeMap_` acts as a visited set keyed by inode address. On the first visit, the address is recorded with the entry's path. On any subsequent visit, `FSEntry` sets `handle_ = nullptr` and `isLink_ = true`. Because `isLink_` entries have a null handle, they cannot be opened, read, or descended into — they simply record where to look.
 
-The map is never cleared between operations. This is intentional: a single run only has one disk/filesystem context, so the inode space is stable for the lifetime of the process.
+The map is owned by `FileSystem` and scoped to a single filesystem instance. This means hard link deduplication works correctly within one partition, and inode numbers from different partitions (which share the same address space) never collide.
 
 ### Lazy child loading
 

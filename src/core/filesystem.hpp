@@ -12,6 +12,7 @@ namespace da {
     class FileSystem {
         TSK_FS_INFO* fs_ = nullptr;
         FSEntry* root_ = nullptr;
+        std::map<TSK_INUM_T, std::string> inodeMap_;
 
     public:
         FileSystem(const Disk& disk, TSK_OFF_T byte_offset = 0) {
@@ -37,7 +38,7 @@ namespace da {
                 if (!rootFile) {
                     throw std::runtime_error("Failed to open root FS entry: " + std::string(tsk_error_get()));
                 }
-                root_ = new FSEntry(rootFile, nullptr);
+                root_ = new FSEntry(rootFile, nullptr, inodeMap_);
             }
             return root_;
         }

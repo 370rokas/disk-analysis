@@ -15,7 +15,7 @@ disk-analysis disk.img tree 1
 disk-analysis disk.img extract 1 /etc/passwd ./passwd.txt
 
 # Run a Lua script against the image
-disk-analysis disk.img script ./scripts/export_docs.lua
+disk-analysis disk.img script ./scripts/largest_files.lua
 ```
 
 ## Usage
