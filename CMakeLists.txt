@@ -49,3 +49,8 @@ endif()
 if(WIN32)
     target_compile_definitions(disk-analysis PRIVATE TSK_WIN32)
 endif()
+
+# Static bundling
+if(MINGW)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static -lpthread")
+endif()
