@@ -5,6 +5,7 @@
 #ifndef DISK_ANALYSIS_WRAPPERS_HPP
 #define DISK_ANALYSIS_WRAPPERS_HPP
 
+#include "actions/extract.hpp"
 #include "actions/partitions.hpp"
 #include "core/context.hpp"
 
@@ -90,7 +91,19 @@ namespace da::cli {
         }
     }
 
-    void extractFile();
+    inline void extractFile() {
+        auto& ctx = Ctx::get();
+        auto fs = Partitions::getFileSystem(ctx.getDisk(), ctx.config.target_partition);
+
+        if (!fs) {
+            std::cerr << "Failed to get filesystem for partition ID: " << ctx.config.target_partition << std::endl;
+            return;
+        }
+
+        if (!da::extractFile(*fs, ctx.config.in_path, ctx.config.out_path)) {
+            std::cerr << "Failed to extract: " << ctx.config.in_path << std::endl;
+        }
+    }
 }
 
 #endif //DISK_ANALYSIS_WRAPPERS_HPP

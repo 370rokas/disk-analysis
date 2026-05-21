@@ -1,6 +1,7 @@
 #include "core/context.hpp"
 #include "core/disk.hpp"
 #include "core/volume.hpp"
+#include "scripting/lua.hpp"
 #include "ui/cli/cli.hpp"
 #include "ui/cli/wrappers.hpp"
 
@@ -23,7 +24,10 @@ int main(int argc, char** argv) {
                 da::cli::treeFilesystem();
                 break;
             case da::ActionType::ExtractFile:
+                da::cli::extractFile();
+                break;
             case da::ActionType::RunScript:
+                da::runLuaScript(cfg.in_path, cfg.lua_settings);
                 break;
             default:
                 std::cerr << "Unknown action" << std::endl;

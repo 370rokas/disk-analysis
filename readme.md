@@ -62,11 +62,11 @@ make
 
 - [X] Implement basic TSK wrappers.
 - [X] Implement different output format support (human readable, CSV, JSON).
-- [ ] Implement basic subcommands:
-  - [X] `ls`: List files and directories.
+- [X] Implement LUA scripting support (`da.list_partitions`, `da.open_fs`, `da.extract`, logging bindings).
+- [X] Implement basic subcommands:
+  - [X] `ls`: List partitions.
   - [X] `tree`: Display file system tree.
-  - [ ] `export`: Export a specific file.
-- [ ] Implement LUA scripting support.
+  - [X] `extract`: Extract a specific file.
 - [ ] Create documentation and usage examples.
 - [ ] Automated testing for core functionality.
 - [ ] Automated builds and releases.

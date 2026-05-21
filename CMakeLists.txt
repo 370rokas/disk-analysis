@@ -10,24 +10,31 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(TSK REQUIRED)
 find_package(CLI11 CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
+find_package(Lua REQUIRED)
+find_package(sol2 CONFIG REQUIRED)
 
 # set sources
 set(CODE_SOURCE_FILES
         src/main.cpp
         src/core/fsEntry.cpp
+        src/actions/extract.cpp
         src/actions/partitions.cpp
+        src/scripting/lua.cpp
 )
 
 add_executable(disk-analysis
         ${CODE_SOURCE_FILES})
 
 target_include_directories(disk-analysis PRIVATE
-        src)
+        src
+        ${LUA_INCLUDE_DIR})
 
 target_link_libraries(disk-analysis PRIVATE
         TSK::TSK
         CLI11::CLI11
-        spdlog::spdlog)
+        spdlog::spdlog
+        sol2::sol2
+        ${LUA_LIBRARIES})
 
 # debug flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")

@@ -93,7 +93,7 @@ namespace da {
 
             // log file
             app.add_option("-l,--log", config.log_file, "Path to log file (optional)");
-            app.add_option("-lc,--console", config.log_console, "Enable logging to console");
+            app.add_option("--lc,--console", config.log_console, "Enable logging to console");
 
             app.require_subcommand(1); // Require exactly one subcommand
         }
