@@ -26,12 +26,6 @@ jobs:
             binary: build/disk-analysis
             release_asset: disk-analysis-linux-x64
 
-          - os: macos-latest
-            name: macos-arm64
-            vcpkg_triplet: arm64-osx-static
-            tsk_lib: libtsk.a
-            binary: build/disk-analysis
-            release_asset: disk-analysis-macos-arm64
 
           - os: windows-latest
             name: windows-x64
@@ -85,9 +79,9 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/vcpkg-cache"
           echo "VCPKG_DEFAULT_BINARY_CACHE=$GITHUB_WORKSPACE/vcpkg-cache" >> $GITHUB_ENV
 
-      # ── Refresh vcpkg binary (Linux / macOS) ───────────────────────────────
-      - name: Bootstrap vcpkg (Linux / macOS)
-        if: runner.os != 'Windows'
+      # ── Refresh vcpkg binary (Linux) ──────────────────────────────────────
+      - name: Bootstrap vcpkg (Linux)
+        if: runner.os == 'Linux'
         run: |
           "$VCPKG_INSTALLATION_ROOT/bootstrap-vcpkg.sh" -disableMetrics
 
@@ -110,99 +104,17 @@ jobs:
         if: runner.os == 'Linux' && steps.cache-tsk.outputs.cache-hit != 'true'
         run: sudo apt-get install -y autoconf automake libtool pkg-config
 
-      - name: Install build tools (macOS)
-        if: runner.os == 'macOS' && steps.cache-tsk.outputs.cache-hit != 'true'
-        run: brew install autoconf automake libtool
-
       # ── Build TSK from source ──────────────────────────────────────────────
       - name: Clone TSK
         if: steps.cache-tsk.outputs.cache-hit != 'true'
         run: git clone --depth=1 --branch ${{ env.TSK_VERSION }} https://github.com/sleuthkit/sleuthkit.git tsk-src
 
-      - name: Build TSK (Linux / macOS)
-        if: runner.os != 'Windows' && steps.cache-tsk.outputs.cache-hit != 'true'
+      - name: Build TSK (Linux)
+        if: runner.os == 'Linux' && steps.cache-tsk.outputs.cache-hit != 'true'
         working-directory: tsk-src
         run: |
-          # macOS Clang (and newer GCC/Clang in C11/C17 modes) reject some legacy
-          # K&R-style function definitions in bundled hash sources (md5c.c/sha1c.c).
-          # At the same time, forcing -std=gnu89 globally breaks newer TSK C code
-          # that relies on C99 loop scoping. So: build as GNU99 and patch the few
-          # legacy definitions to ANSI C prototypes.
-          python3 - <<'PY'
-          import re
-          from pathlib import Path
-
-          def patch_file(path: Path) -> bool:
-            text = path.read_text(encoding='utf-8', errors='ignore')
-            original = text
-
-            # Convert known K&R-style definitions into ANSI prototypes.
-            # We match the classic reference implementations used by TSK.
-            replacements = [
-              # sha1c.c
-              (r"(?ms)^SHSTransform\s*\(\s*digest\s*,\s*data\s*\)\s*\n\s*UINT4\s+digest\s*\[[^\]]+\]\s*;\s*\n\s*unsigned\s+char\s+data\s*\[[^\]]+\]\s*;\s*\n\s*\{",
-               "static void SHSTransform(UINT4 digest[5], unsigned char data[64])\n{",
-               "SHSTransform"),
-
-              # md5c.c
-              (r"(?ms)^MD5Transform\s*\(\s*state\s*,\s*block\s*\)\s*\n\s*UINT4\s+state\s*\[[^\]]+\]\s*;\s*\n\s*unsigned\s+char\s+block\s*\[[^\]]+\]\s*;\s*\n\s*\{",
-               "static void MD5Transform(UINT4 state[4], unsigned char block[64])\n{",
-               "MD5Transform"),
-              (r"(?ms)^Encode\s*\(\s*output\s*,\s*input\s*,\s*len\s*\)\s*\n\s*unsigned\s+char\s*\*\s*output\s*;\s*\n\s*UINT4\s*\*\s*input\s*;\s*\n\s*unsigned\s+int\s+len\s*;\s*\n\s*\{",
-               "static void Encode(unsigned char *output, UINT4 *input, unsigned int len)\n{",
-               "Encode"),
-              (r"(?ms)^Decode\s*\(\s*output\s*,\s*input\s*,\s*len\s*\)\s*\n\s*UINT4\s*\*\s*output\s*;\s*\n\s*unsigned\s+char\s*\*\s*input\s*;\s*\n\s*unsigned\s+int\s+len\s*;\s*\n\s*\{",
-               "static void Decode(UINT4 *output, unsigned char *input, unsigned int len)\n{",
-               "Decode"),
-              (r"(?ms)^MD5_memcpy\s*\(\s*output\s*,\s*input\s*,\s*len\s*\)\s*\n\s*unsigned\s+char\s*\*\s*output\s*;\s*\n\s*unsigned\s+char\s*\*\s*input\s*;\s*\n\s*unsigned\s+int\s+len\s*;\s*\n\s*\{",
-               "static void MD5_memcpy(unsigned char *output, unsigned char *input, unsigned int len)\n{",
-               "MD5_memcpy"),
-              (r"(?ms)^MD5_memset\s*\(\s*output\s*,\s*value\s*,\s*len\s*\)\s*\n\s*unsigned\s+char\s*\*\s*output\s*;\s*\n\s*int\s+value\s*;\s*\n\s*unsigned\s+int\s+len\s*;\s*\n\s*\{",
-               "static void MD5_memset(unsigned char *output, int value, unsigned int len)\n{",
-               "MD5_memset"),
-            ]
-
-            changed = False
-            for pattern, repl, name in replacements:
-              new_text, n = re.subn(pattern, repl, text)
-              if n:
-                text = new_text
-                changed = True
-
-            # If a legacy K&R signature is present but we didn't patch it, fail fast
-            # so the workflow doesn't proceed with a confusing compiler error.
-            kr_markers = [
-              "SHSTransform(digest, data)",
-              "MD5Transform(state, block)",
-              "Encode(output, input, len)",
-              "Decode(output, input, len)",
-              "MD5_memcpy(output, input, len)",
-              "MD5_memset(output, value, len)",
-            ]
-            if any(m in original for m in kr_markers) and not changed:
-              raise SystemExit(f"Found legacy K&R signatures in {path} but patch did not apply")
-
-            if changed and text != original:
-              path.write_text(text, encoding='utf-8')
-              return True
-            return False
-
-          # Patch any matching files wherever they live in the TSK tree.
-          targets = []
-          for name in ("sha1c.c", "md5c.c"):
-            targets.extend(Path('.').rglob(name))
-
-          patched = 0
-          for p in targets:
-            if patch_file(p):
-              patched += 1
-
-          print(f"Patched {patched} file(s)")
-          PY
-
           ./bootstrap
           ./configure \
-            CFLAGS="-std=gnu99" \
             --prefix="$TSK_INSTALL" \
             --enable-static \
             --disable-shared \
@@ -210,7 +122,7 @@ jobs:
             --without-libewf \
             --without-afflib \
             --disable-java
-          make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+          make -j$(nproc)
           make install
 
       - name: Build TSK (Windows)
@@ -234,8 +146,8 @@ jobs:
           make install
 
       # ── Configure & build ──────────────────────────────────────────────────
-      - name: Configure (Linux / macOS)
-        if: runner.os != 'Windows'
+      - name: Configure (Linux)
+        if: runner.os == 'Linux'
         run: |
           cmake -B build \
             -DCMAKE_BUILD_TYPE=Release \
