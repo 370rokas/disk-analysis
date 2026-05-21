@@ -66,7 +66,8 @@ jobs:
       # ── Refresh vcpkg (Linux / macOS) ──────────────────────────────────────
       - name: Bootstrap vcpkg (Linux / macOS)
         if: runner.os != 'Windows'
-        run: "$VCPKG_INSTALLATION_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+        run: |
+          "$VCPKG_INSTALLATION_ROOT/bootstrap-vcpkg.sh" -disableMetrics
 
       # ── TSK cache ──────────────────────────────────────────────────────────
       - name: Cache TSK
