@@ -46,10 +46,27 @@ jobs:
     env:
       TSK_VERSION: sleuthkit-4.12.1
       TSK_INSTALL: ${{ github.workspace }}/tsk-install
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg-cache
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # ── vcpkg binary cache ─────────────────────────────────────────────────
+      - name: Create vcpkg binary cache dir
+        run: mkdir -p "${{ github.workspace }}/vcpkg-cache"
+
+      - name: Cache vcpkg packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/vcpkg-cache
+          key: vcpkg-${{ matrix.name }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-${{ matrix.name }}-
+
+      # ── Refresh vcpkg (Linux / macOS) ──────────────────────────────────────
+      - name: Bootstrap vcpkg (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: "$VCPKG_INSTALLATION_ROOT/bootstrap-vcpkg.sh" -disableMetrics
 
       # ── TSK cache ──────────────────────────────────────────────────────────
       - name: Cache TSK
@@ -72,6 +89,7 @@ jobs:
 
       - name: Install zlib for TSK (Windows)
         if: runner.os == 'Windows' && steps.cache-tsk.outputs.cache-hit != 'true'
+        working-directory: ${{ runner.temp }}
         run: |
           "$VCPKG_INSTALLATION_ROOT/vcpkg" install zlib:x64-windows-static
 
@@ -109,7 +127,6 @@ jobs:
           cmake --install tsk-src/build --config Release
 
       # ── Configure & build ──────────────────────────────────────────────────
-      # vcpkg deps are installed automatically by the toolchain file during configure
       - name: Configure (Linux / macOS)
         if: runner.os != 'Windows'
         run: |
