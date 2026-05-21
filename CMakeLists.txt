@@ -36,9 +36,12 @@ target_link_libraries(disk-analysis PRIVATE
         sol2::sol2
         ${LUA_LIBRARIES})
 
-# debug flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+# AddressSanitizer — opt-in, off by default (never enable in release/CI builds)
+option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
+if(ENABLE_ASAN)
+    target_compile_options(disk-analysis PRIVATE -fsanitize=address)
+    target_link_options(disk-analysis PRIVATE -fsanitize=address)
+endif()
 
 # winbloat specific stuff
 if(WIN32)

@@ -1,0 +1,152 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  release:
+    types: [published]
+
+permissions:
+  contents: write  # required for gh release upload
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux-x64
+            vcpkg_triplet: x64-linux-static
+            tsk_lib: libtsk.a
+            binary: build/disk-analysis
+            release_asset: disk-analysis-linux-x64
+
+          - os: macos-13
+            name: macos-x64
+            vcpkg_triplet: x64-osx-static
+            tsk_lib: libtsk.a
+            binary: build/disk-analysis
+            release_asset: disk-analysis-macos-x64
+
+          - os: windows-latest
+            name: windows-x64
+            vcpkg_triplet: x64-windows-static
+            tsk_lib: tsk.lib
+            binary: build/Release/disk-analysis.exe
+            release_asset: disk-analysis-windows-x64.exe
+
+    runs-on: ${{ matrix.os }}
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      TSK_VERSION: sleuthkit-4.12.1
+      TSK_INSTALL: ${{ github.workspace }}/tsk-install
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── TSK cache ──────────────────────────────────────────────────────────
+      - name: Cache TSK
+        id: cache-tsk
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/tsk-install
+          key: tsk-${{ env.TSK_VERSION }}-${{ matrix.name }}
+
+      # ── Platform deps needed before building TSK ───────────────────────────
+      - name: Install build tools (Linux)
+        if: runner.os == 'Linux' && steps.cache-tsk.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool pkg-config zlib1g-dev
+
+      - name: Install build tools (macOS)
+        if: runner.os == 'macOS' && steps.cache-tsk.outputs.cache-hit != 'true'
+        run: brew install autoconf automake libtool
+
+      - name: Install zlib for TSK (Windows)
+        if: runner.os == 'Windows' && steps.cache-tsk.outputs.cache-hit != 'true'
+        run: "$VCPKG_INSTALLATION_ROOT/vcpkg" install zlib:x64-windows-static
+
+      # ── Build TSK from source ──────────────────────────────────────────────
+      - name: Clone TSK
+        if: steps.cache-tsk.outputs.cache-hit != 'true'
+        run: git clone --depth=1 --branch ${{ env.TSK_VERSION }} https://github.com/sleuthkit/sleuthkit.git tsk-src
+
+      - name: Build TSK (Linux / macOS — autotools)
+        if: runner.os != 'Windows' && steps.cache-tsk.outputs.cache-hit != 'true'
+        working-directory: tsk-src
+        run: |
+          ./bootstrap
+          ./configure \
+            --prefix="$TSK_INSTALL" \
+            --enable-static \
+            --disable-shared \
+            --without-openssl \
+            --without-libewf \
+            --without-afflib \
+            --disable-java
+          make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+          make install
+
+      - name: Build TSK (Windows — CMake)
+        if: runner.os == 'Windows' && steps.cache-tsk.outputs.cache-hit != 'true'
+        run: |
+          cmake -B tsk-src/build -S tsk-src \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_INSTALL_PREFIX="$TSK_INSTALL" \
+            -DCMAKE_PREFIX_PATH="$VCPKG_INSTALLATION_ROOT/installed/x64-windows-static" \
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          cmake --build tsk-src/build --config Release
+          cmake --install tsk-src/build --config Release
+
+      # ── Configure & build ──────────────────────────────────────────────────
+      # vcpkg deps are installed automatically by the toolchain file during configure
+      - name: Configure (Linux / macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }} \
+            -DVCPKG_OVERLAY_TRIPLETS=cmake/triplets \
+            -DTSK_INCLUDE_DIR="$TSK_INSTALL/include" \
+            -DTSK_LIBRARY="$TSK_INSTALL/lib/${{ matrix.tsk_lib }}" \
+            -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++"
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DVCPKG_TARGET_TRIPLET=${{ matrix.vcpkg_triplet }} \
+            -DTSK_INCLUDE_DIR="$TSK_INSTALL/include" \
+            -DTSK_LIBRARY="$TSK_INSTALL/lib/${{ matrix.tsk_lib }}" \
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      # ── Artifacts & release assets ─────────────────────────────────────────
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: disk-analysis-${{ matrix.name }}
+          path: ${{ matrix.binary }}
+          if-no-files-found: error
+
+      - name: Attach to GitHub release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp "${{ matrix.binary }}" "${{ matrix.release_asset }}"
+          gh release upload "${{ github.event.release.tag_name }}" "${{ matrix.release_asset }}"
