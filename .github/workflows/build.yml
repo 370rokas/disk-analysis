@@ -125,6 +125,7 @@ jobs:
         run: |
           ./bootstrap
           ./configure \
+            CFLAGS="-std=gnu89" \
             --prefix="$TSK_INSTALL" \
             --enable-static \
             --disable-shared \
