@@ -8,6 +8,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # find dependencies
 find_package(TSK REQUIRED)
+find_package(ZLIB REQUIRED)
 find_package(CLI11 CONFIG REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(Lua REQUIRED)
@@ -31,6 +32,7 @@ target_include_directories(disk-analysis PRIVATE
 
 target_link_libraries(disk-analysis PRIVATE
         TSK::TSK
+        ZLIB::ZLIB
         CLI11::CLI11
         spdlog::spdlog
         sol2::sol2
